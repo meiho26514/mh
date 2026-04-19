@@ -25,7 +25,8 @@ function handleLogin() {
     const isKeep = document.getElementById('keepLogin').checked;
     const cap = document.getElementById('captchaInput').value;
 
-    if (id === "1234" && cap.toUpperCase() === currentCaptcha) {
+    // 修改處：移除 .toUpperCase()，改為嚴格比對大小寫
+    if (id === "1234" && cap === currentCaptcha) {
         if (isKeep) {
             localStorage.setItem('rememberedId', id);
             localStorage.setItem('rememberedPwd', pwd);
