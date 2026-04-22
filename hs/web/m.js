@@ -5,6 +5,14 @@ let cancelTargetId = "";
 let currentUser = null;
 let regGender = "男";
 
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 window.onload = () => {
     generateCaptcha();
     checkRememberedData();
@@ -66,7 +74,7 @@ function setRegGender(g) {
 function showRegisterModal() { document.getElementById('registerModal').classList.remove('hidden'); }
 function closeRegisterModal() { document.getElementById('registerModal').classList.add('hidden'); }
 
-function handleRegister() {
+async function handleRegister() {
     const id = document.getElementById('regId').value;
     const name = document.getElementById('regName').value;
     const cls = document.getElementById('regClass').value;
@@ -78,13 +86,15 @@ function handleRegister() {
     let users = JSON.parse(localStorage.getItem('registeredUsers') || "[]");
     if (users.find(u => u.id === id)) return showError("此學號已被註冊！");
 
-    users.push({ id, name, pwd, class: cls, email, gender: regGender, avatar: null });
+    const hashedPassword = await hashPassword(pwd);
+
+    users.push({ id, name, pwd: hashedPassword, class: cls, email, gender: regGender, avatar: null });
     localStorage.setItem('registeredUsers', JSON.stringify(users));
 
     closeRegisterModal();
     showSuccess("註冊成功！", "請使用新帳號登入", () => {
         document.getElementById('stuId').value = id;
-        document.getElementById('stuPwd').value = pwd;
+        document.getElementById('stuPwd').value = "";
     });
 }
 
@@ -111,20 +121,20 @@ function verifyForgot() {
     }
 }
 
-function resetPassword() {
+async function resetPassword() {
     const newPwd = document.getElementById('newPwd').value;
     if (!newPwd) return showError("請輸入新密碼");
     let users = JSON.parse(localStorage.getItem('registeredUsers') || "[]");
     const idx = users.findIndex(u => u.id === verifyTargetId);
-    users[idx].pwd = newPwd;
+
+    users[idx].pwd = await hashPassword(newPwd);
     localStorage.setItem('registeredUsers', JSON.stringify(users));
 
     closeForgotModal();
     showSuccess("更新成功", "密碼更新成功，請重新登入");
 }
 
-
-function handleLogin() {
+async function handleLogin() {
     const id = document.getElementById('stuId').value;
     const pwd = document.getElementById('stuPwd').value;
     const cap = document.getElementById('captchaInput').value;
@@ -137,7 +147,15 @@ function handleLogin() {
     }
 
     let users = JSON.parse(localStorage.getItem('registeredUsers') || "[]");
-    let user = users.find(u => u.id === id && u.pwd === pwd);
+
+    let hashedInputPassword;
+    if (pwd.length === 64) {
+        hashedInputPassword = pwd;
+    } else {
+        hashedInputPassword = await hashPassword(pwd);
+    }
+
+    let user = users.find(u => u.id === id && u.pwd === hashedInputPassword);
 
     if (id === "123" && pwd === "456") {
         user = { id: "1234", name: "香蕉", class: "日四技 資訊科技4年級1班", email: "banana_meiho@edu.tw", gender: "男", avatar: "banana" };
@@ -147,7 +165,7 @@ function handleLogin() {
         currentUser = user;
         if (isKeep) {
             localStorage.setItem('rememberedId', id);
-            localStorage.setItem('rememberedPwd', pwd);
+            localStorage.setItem('rememberedPwd', hashedInputPassword);
         } else {
             localStorage.removeItem('rememberedId');
             localStorage.removeItem('rememberedPwd');
@@ -172,7 +190,7 @@ function generateRandomBookings() {
     const allRooms = [];
     for (let i = 308; i <= 316; i++) allRooms.push(`C${i}`);
     [306, 307, 406, 407].forEach(i => allRooms.push(`M${i}`));
-    for (let i = 301; i <= 305; i++) allRooms.push(`R${i}`);
+    for (let i = 301; i <= 305; i++) allRooms.push(`N${i}`);
 
     let allBookings = JSON.parse(localStorage.getItem('all_room_bookings') || "[]");
     const today = new Date().toISOString().split('T')[0];
@@ -226,7 +244,6 @@ function loadRooms() {
         return { ...room, status: 'available', user: '', time: '' };
     });
 }
-
 
 function confirmBooking() {
     const date = document.getElementById('bookingDate').value;
@@ -356,7 +373,7 @@ function toggleEditProfile(isEditing) {
 function openPwdModal() { document.getElementById('passwordModal').classList.remove('hidden'); }
 function closePwdModal() { document.getElementById('passwordModal').classList.add('hidden'); }
 
-function saveProfileChanges(isPwdOnly = false) {
+async function saveProfileChanges(isPwdOnly = false) {
     const newName = document.getElementById('editName').value;
     const newClass = document.getElementById('editClass').value;
     const newEmail = document.getElementById('editEmail').value;
@@ -376,7 +393,8 @@ function saveProfileChanges(isPwdOnly = false) {
             users[idx].email = newEmail;
             users[idx].id = newId;
         }
-        if (newPwd) users[idx].pwd = newPwd;
+        if (newPwd) users[idx].pwd = await hashPassword(newPwd);
+
         localStorage.setItem('registeredUsers', JSON.stringify(users));
         currentUser = users[idx];
     }
