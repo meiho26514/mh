@@ -172,7 +172,6 @@ body {
     padding: 20px;
 }
 
-/* 註冊視窗不顯示捲軸並限制寬度與縮放 */
 #registerModal>div {
     max-height: none;
     overflow-y: visible;
@@ -271,7 +270,7 @@ body {
     border-color: var(--secondary) !important;
 }
 
-/* 增加卡片中預約時間的字體大小 */
+
 .card-time-display {
     font-size: 13px !important;
     letter-spacing: 0.5px;
